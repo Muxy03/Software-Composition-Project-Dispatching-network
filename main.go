@@ -354,17 +354,22 @@ func (G *NetworkGraph) PrintGraph() {
 func main() {
 	fmt.Println("Dispatching Network Implementation")
 	fmt.Println("==================================")
+	fmt.Printf("Source:%x, Internal:%x, Target:%x\n\n", Source, Internal, Target)
 
 	G := CreateNetworkGraph()
 
 	fmt.Println("List of Nodes:")
 	for _, node := range G.Nodes {
-		fmt.Printf("Node %s: type=%x messages=%x\n", node.Label, node.Type, len(node.Messages))
+		if node.Type == Source {
+			fmt.Printf("Node %s: type=%x messages=%x\n", node.Label, node.Type, len(node.Messages))
+		} else {
+			fmt.Printf("Node %s: type=%x\n", node.Label, node.Type)
+		}
 	}
 
 	fmt.Println("\nNetwork topology:")
 	for _, edge := range G.Edges {
-		fmt.Printf("%s capacity:%x\n", edge.Label, edge.Capacity)
+		fmt.Println(edge.Label)
 	}
 	fmt.Println("==================================")
 
