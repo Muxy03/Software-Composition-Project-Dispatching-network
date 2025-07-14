@@ -19,7 +19,7 @@ Structs:
     - Messages: slice of strings only used by source nodes
 
 - Edge rappresent a edge of the graph.
-    - Label: `A->B`
+    - Label: "A->B"
     - Ch: channel shared between two nodes
     - Traffic: number of messages that pass through that edge
 
