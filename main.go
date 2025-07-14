@@ -131,6 +131,7 @@ func (G *NetworkGraph) RunInternalNode(node *Node) {
 		}(inCh)
 	}
 
+	// Wait for all processes to complete
 	wg.Wait()
 
 	// Close outgoing channels
@@ -168,6 +169,7 @@ func (G *NetworkGraph) RunTargetNode(node *Node) {
 		}(inCh)
 	}
 
+	// Wait for all processes to complete
 	wg.Wait()
 }
 
