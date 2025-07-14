@@ -1,7 +1,0 @@
-digraph "Graph" {
-	Nodo1 -> Nodo2 [label=4]
-	Nodo3 -> Nodo4 [label=3]
-	Nodo4 -> Nodo5 [label=3]
-	Nodo5 -> Nodo6 [label=3]
-	Nodo2 -> Nodo6 [label=4]
-}

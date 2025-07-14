@@ -11,10 +11,19 @@ import (
 	"sync"
 )
 
+// Types of a Node
+const (
+	Undefined uint = iota
+	Source
+	Internal
+	Target
+)
+
+// Edge represents a edge betwenn two nodes of the network graph
 type Edge struct {
-	Label    string
-	Ch       chan string
-	Capacity int
+	Label   string
+	Ch      chan string
+	Traffic int
 }
 
 // Node represents a node in the network graph
@@ -26,14 +35,6 @@ type Node struct {
 	Messages []string // Only used for source nodes
 }
 
-// COMMENTARE
-const (
-	Undefined uint = iota
-	Source
-	Internal
-	Target
-)
-
 // NetworkGraph represents the entire network
 type NetworkGraph struct {
 	Nodes    []*Node
@@ -42,7 +43,7 @@ type NetworkGraph struct {
 	Wg       sync.WaitGroup
 }
 
-// COMMENTARE
+// function to avoid more than 1 occurence of a Node in G.Nodes
 func (g *NetworkGraph) hasNode(label string) bool {
 	for _, node := range g.Nodes {
 		if node.Label == label {
@@ -52,7 +53,7 @@ func (g *NetworkGraph) hasNode(label string) bool {
 	return false
 }
 
-// COMMENTARE
+// function to get the Edge which Edge.ch is ch
 func (G *NetworkGraph) getEdge(ch chan string) *Edge {
 	for _, Edge := range G.Edges {
 		if Edge.Ch == ch {
@@ -62,28 +63,28 @@ func (G *NetworkGraph) getEdge(ch chan string) *Edge {
 	return nil
 }
 
-// COMMENTARE
+// function used to send messages from source node
 func (G *NetworkGraph) RunSourceNode(node *Node) {
 	defer G.Wg.Done()
 
-	ich := 0
-	im := 0
+	och := 0 // index of current outgoing channel
+	im := 0  // index of current message
 
-	// COMMENTARE
+	// loop to split all messages using all node's outgoing channels
 	for {
 
 		if im >= len(node.Messages) {
 			break
 		}
 
-		if ich >= len(node.Outgoing) {
-			ich = 0
+		if och >= len(node.Outgoing) {
+			och = 0
 		}
 
-		node.Outgoing[ich] <- node.Messages[im] // Blocking send to ensure delivery
+		node.Outgoing[och] <- node.Messages[im] // Blocking send to ensure delivery
 		//fmt.Printf("Source %s sent: %s\n", node.Label, message)
 
-		ich++
+		och++
 		im++
 	}
 
@@ -93,47 +94,44 @@ func (G *NetworkGraph) RunSourceNode(node *Node) {
 	}
 }
 
-// COMMENTARE
+// function used to forward messages from source node
 func (G *NetworkGraph) RunInternalNode(node *Node) {
 	defer G.Wg.Done()
 
-	// Create a merged channel to receive from all incoming channels
-	mergedCh := make(chan string)
 	var wg sync.WaitGroup
+	var mu sync.Mutex // mutex used to synchronize selection of current outgoing channel
+	och := 0          // index of current outgoing channel
 
 	// Start a goroutine for each incoming channel
 	for _, inCh := range node.Incoming {
 		wg.Add(1)
+
 		go func(ch chan string) {
 			defer wg.Done()
+
 			edge := G.getEdge(ch)
+
 			for message := range ch {
-				edge.Capacity++
-				mergedCh <- message
+
+				edge.Traffic++
+
+				mu.Lock()
+
+				if och >= len(node.Outgoing) {
+					och = 0
+				}
+
+				outCh := node.Outgoing[och]
+				och++
+
+				mu.Unlock()
+
+				outCh <- message
 			}
 		}(inCh)
 	}
 
-	// Close merged channel when all incoming channels are closed
-	go func() {
-		wg.Wait()
-		close(mergedCh)
-	}()
-
-	ich := 0
-
-	// Process messages from merged channel
-	for message := range mergedCh {
-
-		if ich >= len(node.Outgoing) {
-			ich = 0
-		}
-
-		node.Outgoing[ich] <- message // Blocking send to ensure delivery
-		//fmt.Printf("Internal %s processed: %s\n", node.Label, message)
-
-		ich++
-	}
+	wg.Wait()
 
 	// Close outgoing channels
 	for _, ch := range node.Outgoing {
@@ -141,42 +139,39 @@ func (G *NetworkGraph) RunInternalNode(node *Node) {
 	}
 }
 
-// COMMENTARE
+// function used to receive all messages from other nodes
 func (G *NetworkGraph) RunTargetNode(node *Node) {
 	defer G.Wg.Done()
 
-	// Create a merged channel to receive from all incoming channels
-	mergedCh := make(chan string)
 	var wg sync.WaitGroup
+	var mu sync.Mutex // mutex used to synchronize the print of messages received
 
 	// Start a goroutine for each incoming channel
 	for _, inCh := range node.Incoming {
 		wg.Add(1)
+
 		go func(ch chan string) {
 			defer wg.Done()
 
 			edge := G.getEdge(ch)
 
 			for message := range ch {
-				edge.Capacity++
-				mergedCh <- message
+
+				edge.Traffic++
+
+				mu.Lock()
+
+				fmt.Printf("TARGET OUTPUT: %s\n", message)
+
+				mu.Unlock()
 			}
 		}(inCh)
 	}
 
-	// Close merged channel when all incoming channels are closed
-	go func() {
-		wg.Wait()
-		close(mergedCh)
-	}()
-
-	// Process all messages from merged channel
-	for message := range mergedCh {
-		fmt.Printf("TARGET OUTPUT: %s\n", message)
-	}
+	wg.Wait()
 }
 
-// COMMENTARE
+// function used to start the dispatching network
 func (G *NetworkGraph) Run() {
 	fmt.Println("Starting dispatching network...")
 
@@ -198,7 +193,7 @@ func (G *NetworkGraph) Run() {
 	fmt.Println("Dispatching network completed.")
 }
 
-// COMMENTARE
+// function used to extract all messages from messages.txt
 func GetMessages() []string {
 	messages := []string{}
 	fm, err := os.Open("messages.txt")
@@ -219,7 +214,7 @@ func GetMessages() []string {
 	return messages
 }
 
-// COMMENTARE
+// function used to create a new network graph
 func CreateNetworkGraph() *NetworkGraph {
 
 	G := NetworkGraph{
@@ -250,7 +245,7 @@ func CreateNetworkGraph() *NetworkGraph {
 			from := Node{Label: edge[0], Type: Undefined, Incoming: make([]chan string, 0), Outgoing: make([]chan string, 0), Messages: make([]string, 0)}
 			to := Node{Label: edge[1], Type: Undefined, Incoming: make([]chan string, 0), Outgoing: make([]chan string, 0), Messages: make([]string, 0)}
 
-			G.Edges = append(G.Edges, &Edge{Label: edge[0] + "->" + edge[1], Capacity: 0})
+			G.Edges = append(G.Edges, &Edge{Label: edge[0] + "->" + edge[1], Traffic: 0})
 
 			if !G.hasNode(from.Label) {
 				G.Nodes = append(G.Nodes, &from)
@@ -262,7 +257,7 @@ func CreateNetworkGraph() *NetworkGraph {
 		}
 	}
 
-	// COMMENTARE
+	// loop used to fill outgoing and incoming slices
 	for _, Edge := range G.Edges {
 		edge := strings.Split(Edge.Label, "->")
 
@@ -284,7 +279,7 @@ func CreateNetworkGraph() *NetworkGraph {
 		G.Nodes[to].Incoming = append(G.Nodes[to].Incoming, ch)
 	}
 
-	// COMMENTARE
+	// determine the type of each node
 	Sources := []*Node{}
 	for _, node := range G.Nodes {
 
@@ -298,10 +293,9 @@ func CreateNetworkGraph() *NetworkGraph {
 		}
 	}
 
-	// COMMENTARE
-	mxnode := int(len(G.Messages) / len(Sources))
+	mxnode := int(len(G.Messages) / len(Sources)) // number of messages for source node
 
-	// COMMENTARE
+	// loop used to split homogeneously between all source nodes
 	i := 0
 	j := 0
 	for {
@@ -328,15 +322,15 @@ func CreateNetworkGraph() *NetworkGraph {
 
 }
 
-// COMMENTARE
+// function used to create 'graph.png' using 'script.py'
 func (G *NetworkGraph) PrintGraph() {
 	tmp := "["
 
 	for i, Edge := range G.Edges {
 		if i < len(G.Edges)-1 {
-			tmp += fmt.Sprintf("[%s:%x],", Edge.Label, Edge.Capacity)
+			tmp += fmt.Sprintf("[%s:%x],", Edge.Label, Edge.Traffic)
 		} else {
-			tmp += fmt.Sprintf("[%s:%x]", Edge.Label, Edge.Capacity)
+			tmp += fmt.Sprintf("[%s:%x]", Edge.Label, Edge.Traffic)
 		}
 	}
 

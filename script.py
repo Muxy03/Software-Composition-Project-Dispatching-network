@@ -1,5 +1,6 @@
 import graphviz
 import sys
+import os
 
 if __name__ == "__main__":
     tmp = sys.argv[1]
@@ -15,4 +16,5 @@ if __name__ == "__main__":
             dot.edge(start, end, weight)            
 
     dot.render('graph', format='png', view=False)
-    print("grafo creato")
+    os.remove("graph") # delete graph file that describe the graph with new labels
+    print("graph created")
