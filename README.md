@@ -14,8 +14,8 @@ Structs:
 - Node rappresent a node of the graph.
     - Label: the node's name
     - Type: the node's type (constants)
-    - Incoming: slice of channel that represents the edges incoming
-    - Outgoing: slice of channel that represents the edges outgoing
+    - Incoming: slice of channel that represents the incoming edges
+    - Outgoing: slice of channel that represents the outgoing edges
     - Messages: slice of strings only used by source nodes
 
 - Edge rappresent a edge of the graph.
@@ -27,7 +27,7 @@ Structs:
     - Nodes: slice of Nodes
     - Edges: slice of Edges
     - Messages: Slice of string that contains all messages
-    - Wg: WaitGroup used to is used to wait for all the goroutines launched.
+    - Wg: WaitGroup used to wait for all the goroutines launched.
 
 Files:
 1. `Exercise.md` contains the text of exercise.
