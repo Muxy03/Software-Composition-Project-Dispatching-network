@@ -162,7 +162,7 @@ func (G *NetworkGraph) RunTargetNode(node *Node) {
 
 				mu.Lock()
 
-				fmt.Printf("TARGET OUTPUT: %s\n", message)
+				fmt.Printf("TARGET OUTPUT from %s: %s\n", node.Label, message)
 
 				mu.Unlock()
 			}
